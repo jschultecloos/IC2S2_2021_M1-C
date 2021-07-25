@@ -1,0 +1,9 @@
+libudunits2-dev
+libgdal-dev
+libgeos-dev
+libproj-dev
+libmagick++-dev
+libharfbuzz-dev 
+libfribidi-dev
+ghostscript
+libpoppler-cpp-dev
