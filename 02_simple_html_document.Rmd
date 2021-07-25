@@ -1,0 +1,213 @@
+---
+title: |
+  Writing a reproducible research paper
+author: |
+  Reproducible Researcher
+date: |
+  `r lubridate::today()`
+output:
+  bookdown::html_document2:
+    theme: readable
+    highlight: textmate
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+    number_sections: no
+    code_folding: hide
+    code_download: true
+    toc_depth: 2 
+bibliography: literature.bib
+---
+
+
+```{r setup, include=FALSE}
+
+pacman::p_load(
+  bookdown,
+  ggplot2,
+  devtools,
+  tidyverse,
+  lubridate,
+  modelsummary,
+  showtext,
+  kableExtra,
+  colorspace,
+  xfun,
+  palmerpenguins,
+  ggiraph, 
+  leaflet
+)
+
+
+knitr::opts_chunk$set(
+  cache = FALSE,
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width=12, 
+  fig.align="center",
+  fig.showtext = TRUE
+)
+
+
+## add a font from google fonts
+font_add_google(
+  name = "Fira Sans",
+  family = "Fira Sans"
+)
+
+```
+
+
+```{r global-ggplot-options}
+
+# we use a custom font from google fonts
+
+showtext_auto()
+ggplot2::theme_set(theme_minimal() +
+  theme(text = element_text(family = "Fira Sans"))
+)
+
+```
+
+
+```{r load-penguin-data}
+
+penguins = palmerpenguins::penguins
+
+```
+
+
+
+# The basics
+
+R Markdown offers a framework to generate reproducible research in various output formats (e.g., PDF reports, HTML documents). This Rmd file is optimized for the creation of an **interactive HTML report**. The conversion from R code and Markdown text to the respective output format is implemented by the document conversion tool **Pandoc** that ships with the `rmarkdown` library. You can click on the `Knit` button in the RStudio IDE or call `rmarkdown::render("02_simple_html_document.Rmd", "bookdown::html_document2")`.
+
+
+# Citations
+
+Just like in a \LaTeX based manuscript, we can rely on Pandoc Markdown to cite and reference literature from our bib-file that we specify in the YAML header. The interactive graph that we present below relies on data from @palmerdata.2020.
+
+
+# Styling of the HTML document
+
+There are several bootstrap themes that are currently supported by `bookdown::html_document2`, The Bootstrap style actually has several built-in themes that you can use, including `default`, `cerulean`, `journal`, `flatly`, `darkly`, `readable`, `spacelab`, `united`, `cosmo`, `lumen`, `paper`, `sandstone`, `simplex`, and `yeti`. You can set the theme via the theme option in the YAML header: 
+
+```{r, echo=TRUE, eval=FALSE}
+---
+output:
+  bookdown::html_document2:
+    theme: readable
+---
+```
+
+
+# Code folding and code download in HTML documents
+
+In HTML documents, it is very convenient to rely on code folding, which allows the reader to to toggle the display of your R code chunks. The option `code_download` allows you to embed the Rmd source code within the document that can be used to download the code.
+
+
+```{r, echo=TRUE, eval=FALSE}
+---
+output:
+  bookdown::html_document2:
+    theme: readable
+    code_folding: hide
+---
+```
+
+
+# Interactive elements in reproducible HTML documents 
+
+In contrast to static documents, HTML documents allow us to include interactive elements in our reproducible documents.
+
+## Interactive graphs with `ggiraph`
+
+In HTML output, we can also rely on interactive graphs created with `ggplot` and [`ggiraph`](https://davidgohel.github.io/ggiraph/index.html), which allows us to add tooltips, animations, or even JavaScript actions to our existing `ggplot` objects. In our example, we use a tooltip that displays the exact flipper length of each penguin in the data when hovering over the data point in the scatter plot. As we would only like to include the results (i.e., the graph) of our interactive scatter plot in the HTML version of our manuscript, we specify the `include` chunk option to take on the value `FALSE` if the output format is HTML. In the next code chunk, we further augment the `ggplot` with `ggiraph` without having to repeat our code from above. The HTML output of the `reproducr` library only shows the interactive `ggiraph` version of the Figure.   
+
+```{r ggplot, fig.cap="Body mass and flipper length of penguins."}
+
+
+scatter_mass_flipper <- ggplot(
+  data = penguins,
+  aes(
+    x = flipper_length_mm,
+    y = body_mass_g
+  )
+) +
+  geom_point(aes(
+    color = species,
+    shape = species
+  ),
+  size = 3,
+  alpha = 0.8
+  ) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    title = "Penguin size, Palmer Station LTER",
+    subtitle = "Flipper length and body mass for Adélie, Chinstrap and Gentoo penguins",
+    x = "Flipper length (mm)",
+    y = "Body mass (g)",
+    color = "Penguin species",
+    shape = "Penguin species"
+  ) 
+
+```  
+
+
+```{r ggiraph-animate, fig.cap="Body mass and flipper length of penguins (interactive plot).", eval=knitr::is_html_output()}
+
+scatter_mass_flipper = scatter_mass_flipper + 
+  geom_point_interactive(
+    aes(tooltip = paste0("<b>Flipper Length: </b>",
+                         round(flipper_length_mm,
+                               digits=2)
+                         )
+        ),
+    size=1)
+
+girafe(ggobj = scatter_mass_flipper, 
+       width_svg=7, 
+       height_svg = 4)
+
+```
+
+
+
+## Interactive tables with `DT`
+
+In HTML documents, you can rely on static and interactive tables. A very popular library to create interactive tables is the [R library `DT`](https://rstudio.github.io/DT/) that provides an interface to the JavaScript library DataTable [DataTable](https://datatables.net/).
+
+
+```{r datatable, echo=TRUE}
+
+datatable = DT::datatable(penguins, 
+                          filter = 'top', 
+                          options = list(pageLength = 5, 
+                                         lengthMenu = c(5, 10)), 
+                          colnames = c('Species', 'Island', 'Bill Length', 'Bill Depth', 
+                                       'Flipper Length', 'Body Mass', 'Sex', 'Year'))
+datatable
+```
+
+## Interactive maps with `DT`
+
+```{r leaflet-map}
+leaflet() %>% 
+  addTiles() %>% 
+  addMarkers(lat=47.3770496,
+             lng=8.5462997,
+             popup="ETH Zurich") %>%
+  setView(lat=47.3770496,
+          lng=8.5462997, zoom=15)
+
+
+```
+
+
+# References
+
+::: {#refs}
+:::
+
